@@ -101,7 +101,7 @@ async function findSpotifySong(title, artist, album) {
 
 function normalizeName(name) {
   return name
-    ?.replace(/[\(\[]feat[^\)\]]*[\)\]]/, "")
+    ?.replace(/[\(\[]f(ea)?t[^\)\]]*[\)\]]/, "")
     ?.replace(/[\(\[\)\]]/g, "")
     ?.toLowerCase()
     ?.trim();
