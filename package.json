@@ -1,0 +1,14 @@
+{
+  "name": "local-to-spotify-yt",
+  "version": "1.0.0",
+  "type": "module",
+  "license": "Unlicense",
+  "dependencies": {
+    "@spotify/web-api-ts-sdk": "1.2.0",
+    "csv-parse": "5.5.5",
+    "csv-stringify": "6.4.6",
+    "dotenv": "16.4.5",
+    "music-metadata": "7.14.0",
+    "read": "3.0.1"
+  }
+}
