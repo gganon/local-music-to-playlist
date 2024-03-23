@@ -1,12 +1,107 @@
 import { SpotifyApi } from "@spotify/web-api-ts-sdk";
-import { normalizeName } from "./util.js";
+import { normalizeName, queryParams } from "./util.js";
+import { createServer } from "node:http";
 
 let sdk = SpotifyApi.withClientCredentials("", "");
 
 export function initSdk(clientId, secret) {
-  sdk = SpotifyApi.withClientCredentials(clientId, secret, [
-    "user-library-modify",
+  sdk = SpotifyApi.withClientCredentials(clientId, secret);
+}
+
+export async function userLogin(
+  clientId,
+  clientSecret,
+  port = 8080,
+  host = "localhost"
+) {
+  const base = `http://${host}:${port}`;
+  const redirectUri = base + "/redirect";
+
+  // create temporary server for OAuth redirection
+  const server = createServer(async (req, res) => {
+    try {
+      const url = new URL(req.url, base);
+
+      if (url.pathname == "/login") {
+        const url =
+          "https://accounts.spotify.com/authorize?" +
+          queryParams({
+            response_type: "code",
+            client_id: clientId,
+            scope: "playlist-modify-public playlist-modify-private",
+            redirect_uri: redirectUri,
+          });
+
+        res.writeHead(302, "Redirecting", {
+          location: url,
+        });
+
+        res.end("Redirecting you to Spotify for authentication...");
+
+        return;
+      }
+
+      if (!url.pathname.endsWith("/redirect")) {
+        res.statusCode = 404;
+        throw new Error("Not Found");
+      }
+
+      if (url.searchParams.has("error")) {
+        res.statusCode = 502;
+        throw new Error(
+          "Failed to recieve an auth code. Spotify returned the following error: " +
+            url.searchParams.get("error")
+        );
+      }
+
+      const code = url.searchParams.get("code");
+
+      if (!url.searchParams.get("code")) {
+        res.statusCode = 502;
+        throw new Error('Error: Expected to get a "code" from Spotify');
+      }
+
+      const response = await fetch("https://accounts.spotify.com/api/token", {
+        method: "POST",
+        body: queryParams({
+          code: code,
+          redirect_uri: redirectUri,
+          grant_type: "authorization_code",
+        }),
+        headers: {
+          "content-type": "application/x-www-form-urlencoded",
+          Authorization:
+            "Basic " +
+            new Buffer.from(clientId + ":" + clientSecret).toString("base64"),
+        },
+      }).then((resp) => resp.json());
+
+      sdk = SpotifyApi.withAccessToken(clientId, response);
+
+      res.end(
+        `You've been authenticated. You may close this window and return to the running script.`
+      );
+    } catch (e) {
+      res.end(e.message);
+    }
+
+    server.close();
+  });
+
+  server.listen(port, host);
+
+  console.log(
+    `\n\nOpen this URL in a browser to authenticate with Spotify:\n\n\t${base}/login`
+  );
+
+  await Promise.race([
+    new Promise((resolve) => server.once("close", resolve)),
+    new Promise((_, reject) => server.once("error", reject)),
   ]);
+}
+
+export async function getUsername() {
+  return (await sdk.currentUser.profile()).display_name;
 }
 
 export async function findSong(title, artist, album) {
@@ -79,8 +174,26 @@ async function spotifySearch(songName, artist, album) {
   return results;
 }
 
+export async function getPaylistName(playlistId) {
+  return (await sdk.playlists.getPlaylist(playlistId)).name;
+}
+
+export async function addToPlaylist(playlistId, trackUrls, replace = false) {
+  const uris = trackUrls.map(trackUrlToUri);
+
+  return replace
+    ? sdk.playlists.updatePlaylistItems(playlistId, { uris })
+    : sdk.playlists.addItemsToPlaylist(playlistId, uris);
+}
+
 function renderSpotifySearchResult(song) {
   return song
     ? `${song.artist[0]} - ${song.name} (${song.album}) => ${song.url}`
     : "";
+}
+
+function trackUrlToUri(trackUrl) {
+  const url = new URL(trackUrl);
+  const id = url.pathname.slice(url.pathname.lastIndexOf("/") + 1);
+  return `spotify:track:${id}`;
 }

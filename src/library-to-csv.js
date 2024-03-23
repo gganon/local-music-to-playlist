@@ -1,29 +1,26 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { basename } from "node:path";
-import dotenv from "dotenv";
 import * as spotify from "./spotify.js";
 import { stringify as csvStringify } from "csv-stringify/sync";
 import { parse as csvParse } from "csv-parse/sync";
 import { getTrackMetadata, listFiles } from "./file.js";
 import { getVariable } from "./util.js";
 
-dotenv.config();
-
 const paths = await getVariable("--path", "PATH", "Library Path(s)", true);
 const outFilePath = await getVariable(
   "--csv-out",
-  "CSV_OUT",
+  "LIBRARY_CSV",
   "Output CSV Path"
 );
 const spotifyClientId = await getVariable(
   "--spotify-client-id",
   "SPOTIFY_CLIENT_ID",
-  "Spotify Client ID:"
+  "Spotify Client ID"
 );
 const spotifyClientSecret = await getVariable(
   "--spotify-client-secret",
   "SPOTIFY_CLIENT_SECRET",
-  "Spotify Client Secret:",
+  "Spotify Client Secret",
   false,
   true
 );

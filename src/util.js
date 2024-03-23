@@ -34,6 +34,7 @@ export async function getVariable(
       : [process.env[envName]];
   } else {
     const input = await read({ prompt: displayName + ": ", silent: secret });
+    secret && console.log("\n"); // sometimes `read()` won't go to the next line when `silent` is true which may make the user feel like it didn't real the input when it actually did
     values = multiple ? input.split(",") : [input];
   }
 
@@ -46,4 +47,30 @@ export async function getVariable(
   }
 
   return null;
+}
+
+export function queryParams(params) {
+  return Object.keys(params)
+    .map((k) => `${k}=${encodeURIComponent(params[k])}`)
+    .join("&");
+}
+
+export function compareTracks(track1, track2) {
+  if (track1.artist > track2.artist) {
+    return 1;
+  }
+
+  if (track1.artist < track2.artist) {
+    return -1;
+  }
+
+  if (track1.album > track2.album) {
+    return 1;
+  }
+
+  if (track1.album < track2.album) {
+    return -1;
+  }
+
+  return 0;
 }
