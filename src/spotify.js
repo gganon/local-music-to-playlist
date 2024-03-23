@@ -1,4 +1,5 @@
 import { SpotifyApi } from "@spotify/web-api-ts-sdk";
+import { normalizeName } from "./util.js";
 
 let sdk = SpotifyApi.withClientCredentials("", "");
 
@@ -8,7 +9,39 @@ export function initSdk(clientId, secret) {
   ]);
 }
 
-export async function findSong(songName, artist, album) {
+export async function findSong(title, artist, album) {
+  const songs = await Promise.all([
+    spotifySearch(
+      normalizeName(title),
+      normalizeName(artist),
+      normalizeName(album)
+    ),
+    spotifySearch(normalizeName(title), normalizeName(artist)),
+  ]).then(([results1, results2]) =>
+    results1.length < 1 ? results2 : results1
+  );
+
+  const matchedSong = songs.find(
+    (song) =>
+      normalizeName(song.name) === normalizeName(title) &&
+      normalizeName(song.album) === normalizeName(album) &&
+      normalizeName(song.artist[0]) === normalizeName(artist)
+  );
+
+  const perfectMatch = !!matchedSong;
+
+  return {
+    spotifySong: matchedSong?.url || songs[0]?.url || "",
+    perfectMatch: JSON.stringify(perfectMatch),
+    spotifyResult1: songs[0] ? renderSpotifySearchResult(songs[0]) : "",
+    spotifyResult2: songs[1] ? renderSpotifySearchResult(songs[1]) : "",
+    spotifyResult3: songs[2] ? renderSpotifySearchResult(songs[2]) : "",
+    spotifyResult4: songs[3] ? renderSpotifySearchResult(songs[3]) : "",
+    spotifyResult5: songs[4] ? renderSpotifySearchResult(songs[4]) : "",
+  };
+}
+
+async function spotifySearch(songName, artist, album) {
   const q =
     songName +
     (artist ? ` artist:${artist}` : "") +
@@ -44,4 +77,10 @@ export async function findSong(songName, artist, album) {
   }
 
   return results;
+}
+
+function renderSpotifySearchResult(song) {
+  return song
+    ? `${song.artist[0]} - ${song.name} (${song.album}) => ${song.url}`
+    : "";
 }
