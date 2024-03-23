@@ -1,11 +1,12 @@
-import { readdirSync, statSync, writeFileSync } from "node:fs";
+import { readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { basename, resolve } from "node:path";
 import * as mm from "music-metadata";
 import { stderr } from "node:process";
 import dotenv from "dotenv";
 import { read } from "read";
 import * as spotify from "./spotify.js";
-import { stringify } from "csv-stringify/sync";
+import { stringify as csvStringify } from "csv-stringify/sync";
+import { parse as csvParse } from "csv-parse/sync";
 
 dotenv.config();
 
@@ -37,12 +38,40 @@ if (!outFilePath.endsWith(".csv")) {
 spotify.initSdk(spotifyClientId, spotifyClientSecret);
 
 const tracks = [];
+const existingTracks = {
+  get(title, artist, album) {
+    return this[`${title || ""},${artist || ""},${album || ""}`];
+  },
+  set(title, artist, album, track) {
+    this[`${title || ""},${artist || ""},${album || ""}`] = track;
+  },
+};
+
+try {
+  const outfile = csvParse(readFileSync(outFilePath), { columns: true });
+  outfile.forEach((track) => {
+    existingTracks.set(track.title, track.artist, track.album, track);
+  });
+} catch (e) {
+  // ignore
+}
+
 const files = listFiles(paths).sort();
 
 for (const file of files) {
   const data = await getTrackMetadata(file);
 
   if (!data) {
+    continue;
+  }
+
+  const title = data.common.title;
+  const artist = data.common.artist;
+  const album = data.common.album;
+
+  if (existingTracks.get(title, artist, album)) {
+    console.log(`[SKIP] ${file}: Already exists in ${outFilePath}`);
+    tracks.push(existingTracks.get(title, artist, album));
     continue;
   }
 
@@ -67,7 +96,7 @@ for (const file of files) {
   tracks.push(meta);
 }
 
-writeFileSync(outFilePath, stringify(tracks, { header: true }));
+writeFileSync(outFilePath, csvStringify(tracks, { header: true }));
 
 async function findSpotifySong(title, artist, album) {
   const songs = await Promise.all([
