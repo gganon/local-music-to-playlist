@@ -21,13 +21,34 @@ const playlistId = await getVariable(
   "PLAYLIST_ID",
   "Playlist ID (all items in playlist will be replaced!)"
 );
+const spotifyRedirectHost = await getVariable(
+  "--redirect-host",
+  "SPOTIFY_REDIRECT_HOST",
+  "Spotify Redirect Host",
+  false,
+  false,
+  false
+);
+const spotifyRedirectPort = await getVariable(
+  "--redirect-port",
+  "SPOTIFY_REDIRECT_PORT",
+  "Spotify Redirect Port",
+  false,
+  false,
+  false
+);
 
 if (!playlistId) {
   console.error("Playlist ID must be provided");
   process.exit(1);
 }
 
-await spotify.userLogin(spotifyClientId, spotifyClientSecret);
+await spotify.userLogin(
+  spotifyClientId,
+  spotifyClientSecret,
+  spotifyRedirectPort,
+  spotifyRedirectHost
+);
 
 console.log("Logged in as " + (await spotify.getUsername()));
 

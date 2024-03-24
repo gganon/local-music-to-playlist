@@ -18,7 +18,8 @@ export async function getVariable(
   envName,
   displayName,
   multiple = false,
-  secret = false
+  secret = false,
+  required = true
 ) {
   let values = [];
 
@@ -32,7 +33,7 @@ export async function getVariable(
     values = multiple
       ? process.env[envName].split(",")
       : [process.env[envName]];
-  } else {
+  } else if (required) {
     const input = await read({ prompt: displayName + ": ", silent: secret });
     secret && console.log("\n"); // sometimes `read()` won't go to the next line when `silent` is true which may make the user feel like it didn't real the input when it actually did
     values = multiple ? input.split(",") : [input];
